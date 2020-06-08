@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -19,6 +21,7 @@ module Ouroboros.Network.Mux
   , TokProtocolTemperature (..)
   , WithProtocolTemperature (..)
   , withoutProtocolTemperature
+  , WithSomeProtocolTemperature (..)
   , Bundle (..)
   , projectBundle
   , OuroborosBundle
@@ -151,7 +154,9 @@ data WithProtocolTemperature (pt :: ProtocolTemperature) a where
 
 deriving instance Eq a => Eq (WithProtocolTemperature pt a)
 deriving instance Show a => Show (WithProtocolTemperature pt a)
-deriving instance (Functor (WithProtocolTemperature pt))
+deriving instance Functor     (WithProtocolTemperature pt)
+deriving instance Foldable    (WithProtocolTemperature pt)
+deriving instance Traversable (WithProtocolTemperature pt)
 
 instance Semigroup a => Semigroup (WithProtocolTemperature pt a) where
     WithHot a <> WithHot b = WithHot (a <> b)
@@ -174,6 +179,12 @@ withoutProtocolTemperature (WithWarm a)        = a
 withoutProtocolTemperature (WithEstablished a) = a
 
 
+data WithSomeProtocolTemperature a where
+    WithSomeProtocolTemperature :: WithProtocolTemperature pt a -> WithSomeProtocolTemperature a
+
+deriving instance Show a => Show (WithSomeProtocolTemperature a)
+
+
 -- | A bundle of 'HotApp', 'WarmApp' and 'EstablishedApp'.
 --
 data Bundle a =
@@ -193,7 +204,7 @@ data Bundle a =
           withEstablished
             :: !(WithProtocolTemperature Established a)
         }
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Semigroup a => Semigroup (Bundle a) where
     Bundle hot warm established <> Bundle hot' warm' established' =
