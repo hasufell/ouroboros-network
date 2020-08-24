@@ -87,6 +87,7 @@ import           Ouroboros.Consensus.Ledger.Abstract
 import           Ouroboros.Consensus.Ledger.CommonProtocolParams
 import           Ouroboros.Consensus.Ledger.Inspect
 import           Ouroboros.Consensus.Ledger.SupportsMempool
+import           Ouroboros.Consensus.Ledger.SupportsPeerSelection
 import           Ouroboros.Consensus.Mock.Ledger.Address
 import           Ouroboros.Consensus.Mock.Ledger.State
 import qualified Ouroboros.Consensus.Mock.Ledger.UTxO as Mock
@@ -390,6 +391,9 @@ genesisSimpleLedgerState = SimpleLedgerState . genesisMockState
 instance MockProtocolSpecific c ext => CommonProtocolParams (SimpleBlock c ext) where
   maxHeaderSize = const 2000000
   maxTxSize     = const 2000000
+
+instance LedgerSupportsPeerSelection (SimpleBlock c ext) where
+  getPeers = const []
 
 {-------------------------------------------------------------------------------
   Support for the mempool

@@ -28,6 +28,7 @@ import           Ouroboros.Consensus.Ledger.Abstract
 import           Ouroboros.Consensus.Ledger.CommonProtocolParams
 import           Ouroboros.Consensus.Ledger.Inspect
 import           Ouroboros.Consensus.Ledger.SupportsMempool
+import           Ouroboros.Consensus.Ledger.SupportsPeerSelection
 import           Ouroboros.Consensus.Ledger.SupportsProtocol
 import           Ouroboros.Consensus.Node.NetworkProtocolVersion
 import           Ouroboros.Consensus.Node.Serialisation
@@ -79,6 +80,7 @@ class ( LedgerSupportsProtocol           blk
       , SerialiseDiskConstraints         blk
       , SerialiseNodeToNodeConstraints   blk
       , SerialiseNodeToClientConstraints blk
+      , LedgerSupportsPeerSelection      blk
       , Show                (CannotForge blk)
       , Show             (ForgeStateInfo blk)
       , Show      (ForgeStateUpdateError blk)

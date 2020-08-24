@@ -65,6 +65,7 @@ import           Ouroboros.Consensus.Ledger.Abstract
 import           Ouroboros.Consensus.Ledger.CommonProtocolParams
 import           Ouroboros.Consensus.Ledger.Inspect
 import           Ouroboros.Consensus.Ledger.SupportsMempool
+import           Ouroboros.Consensus.Ledger.SupportsPeerSelection
 import           Ouroboros.Consensus.Ledger.SupportsProtocol
 import           Ouroboros.Consensus.Node.NetworkProtocolVersion
 import           Ouroboros.Consensus.Node.Run
@@ -312,6 +313,9 @@ instance ReconstructNestedCtxt Header BlockB
 
 instance InspectLedger BlockB where
   -- Use defaults
+
+instance LedgerSupportsPeerSelection BlockB where
+  getPeers = const []
 
 instance SingleEraBlock BlockB where
   singleEraInfo _     = SingleEraInfo "B"

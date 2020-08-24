@@ -32,6 +32,7 @@ import           Ouroboros.Consensus.Ledger.Abstract
 import           Ouroboros.Consensus.Ledger.CommonProtocolParams
 import           Ouroboros.Consensus.Ledger.Inspect
 import           Ouroboros.Consensus.Ledger.SupportsMempool
+import           Ouroboros.Consensus.Ledger.SupportsPeerSelection
 import           Ouroboros.Consensus.Ledger.SupportsProtocol
 import           Ouroboros.Consensus.Storage.Serialisation
 import           Ouroboros.Consensus.Util.Condense
@@ -56,6 +57,7 @@ class ( LedgerSupportsProtocol blk
       , ConvertRawHash blk
       , ReconstructNestedCtxt Header blk
       , CommonProtocolParams blk
+      , LedgerSupportsPeerSelection blk
         -- Instances required to support testing
       , Eq   (GenTx blk)
       , Eq   (ApplyTxErr blk)
