@@ -253,6 +253,7 @@ test-suite test-network
                        Test.Ouroboros.Network.BlockFetch
                        Test.Ouroboros.Network.KeepAlive
                        Test.Ouroboros.Network.MockNode
+                       Test.Ouroboros.Network.TxSubmission
                        Test.Mux
                        Test.Pipe
                        Test.Socket
