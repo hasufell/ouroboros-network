@@ -1,0 +1,43 @@
+\chapter{The Hard Fork Combinator}
+\label{hfc}
+
+\section{Adjustments}
+
+In this section we discuss some adjustments we had to make to the existing
+design of the consensus layer to make the HFC possible
+
+\subsection{Simplifying chain selection}
+\label{simplifying-chain-selection}
+
+Chain selection used to be given the full fragment; now it only gets the tip.
+
+This is non-trivial; we have a long comment explaining this for
+\lstinline!preferAnchoredCandidate!; we should move (copy?) that discussion
+here, and also discuss this comment from \lstinline!preferCandidate!:
+
+\begin{lstlisting}
+  -- NOTE: An assumption that is quite deeply ingrained in the design of the
+  -- consensus layer is that if a chain can be extended, it always should (e.g.,
+  -- see the chain database spec in @ChainDB.md@). This means that any chain
+  -- is always preferred over the empty chain, and 'preferCandidate' does not
+  -- need (indeed, cannot) be called if our current chain is empty.
+\end{lstlisting}
+
+
+\subsection{Removing the assumption that slot/time conversion is always possible}
+\label{removing-known-slot-assumption}
+
+\section{Ledger}
+
+\subsection{Invalid states}
+
+\todo{This came from the Byron/Shelley appendix. Need to generalize a bit or provide context.}
+In a way, it is somewhat strange to have the hard fork mechanism be part of the
+Byron (\cref{byron:hardfork}) or Shelley ledger (\cref{shelley:hardfork})
+itself, rather than some overarching ledger on top. For Byron, a Byron ledger
+state where the \emph{major} version is the (predetermined) moment of the hard
+fork is basically an invalid state, used only once to translate to a Shelley
+ledger. Similar, the \emph{hard fork} part of the Shelley protocol version will
+never increase during Shelley's lifetime; the moment it \emph{does} increase,
+that Shelley state will be translated to the (initial) state of the post-Shelley
+ledger.

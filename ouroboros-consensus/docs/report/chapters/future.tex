@@ -1,0 +1,27 @@
+\chapter{Future work}
+
+\section{On abstraction}
+
+ledger integration: as things were changing a lot, it made sense for consensus to define the ledger API internally and have the integration be done consensus side. but as things are stabilizing, it might make more sense for that abstraction to live externally, so that you can literally plug in shelley into consensus and we don't have to do anything
+
+\section{Genesis}
+\label{future:genesis}
+
+\section{On-disk ledger state}
+
+\duncan
+
+Sketch out what we think it could look like
+Consequences for the design
+
+\section{Transaction TTL}
+\label{future:ttl}
+
+Describe that the mempool could have explicit support for TTL, but that right now we don't (and why this is ok: the ledger anyway checks tx TTL). We should discuss why this is not an attack vector (transactions will either be included in the blockchain or else will be chucked out because some of their inputs will have been used).
+
+\section{Block based versus slot based}
+\label{future:block-vs-slot}
+
+\section{Configuration}
+
+What a mess.

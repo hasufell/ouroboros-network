@@ -1,0 +1,80 @@
+\documentclass{report}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{txfonts}
+\usepackage{todonotes}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{cleveref}
+
+\usetikzlibrary{arrows.meta}
+
+% https://tex.stackexchange.com/questions/229940/can-i-have-a-listing-with-fixed-column-code-and-full-flexible-comments
+\makeatletter
+\let\commentfullflexible\lst@column@fullflexible
+\makeatother
+
+% Use continuous footnote numbering so we can refer to them
+% https://tex.stackexchange.com/questions/10448/continuous-footnote-numbering
+\counterwithout{footnote}{chapter}
+
+\lstset{
+    language=haskell
+  , basicstyle=\small\ttfamily
+  , keywordstyle=\bfseries
+  , commentstyle=\normalsize\rmfamily\itshape\commentfullflexible
+  , columns=fixed
+  , morekeywords={
+        family
+      , Type
+      }
+  }
+
+\title{The IOHK Consensus and Storage Layer}
+\author{Edsko de Vries \\ \href{mailto:edsko@well-typed.com}{edsko@well-typed.com}
+   \and Duncan Coutts  \\ \href{mailto:duncan@well-typed.com}{duncan@well-typed.com} }
+
+% TODO
+%
+% * Incorporate
+%
+%   - Previous blog posts
+%   - Specifications currently stored as markdown files in the repo
+%   - Any discussions in long comments in the code
+%
+% - choice of k: liveness versus safety
+% - make sure we talk about the fact that the ledger can be linear
+
+\newcommand{\duncan}{\todo{Duncan suitable section.}}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\input{chapters/intro.tex}
+\input{chapters/overview.tex}
+\input{chapters/nonfunctional.tex}
+\input{chapters/consensus.tex}
+\input{chapters/ledger.tex}
+\input{chapters/state.tex}
+\input{chapters/ebbs.tex}
+\input{chapters/storage.tex}
+\input{chapters/mempool.tex}
+\input{chapters/hfc.tex}
+\input{chapters/testing.tex}
+\input{chapters/technical.tex}
+\input{chapters/future.tex}
+\input{chapters/conclusions}
+
+\appendix
+
+\input{chapters/byron.tex}
+\input{chapters/shelley.tex}
+
+\bibliographystyle{acm}
+\bibliography{references}
+
+\end{document}
