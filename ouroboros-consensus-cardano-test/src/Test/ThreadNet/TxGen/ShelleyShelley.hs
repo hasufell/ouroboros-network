@@ -12,6 +12,7 @@ module Test.ThreadNet.TxGen.ShelleyShelley (
   ) where
 
 import           Data.SOP.Strict (NS (..))
+import           Test.QuickCheck (Gen)
 
 -- Upstream libraries
 
@@ -23,6 +24,8 @@ import           Cardano.Slotting.EpochInfo (fixedSizeEpochInfo)
 import           Ouroboros.Consensus.Block
 import           Ouroboros.Consensus.Config
 import           Ouroboros.Consensus.Ledger.Basics
+import           Ouroboros.Consensus.Node.ProtocolInfo (NumCoreNodes (..))
+import           Ouroboros.Consensus.NodeId (CoreNodeId)
 import           Test.ThreadNet.TxGen (TxGen (..))
 
 -- HardFork
@@ -47,9 +50,21 @@ import           Test.ThreadNet.Infra.ShelleyShelley
   Transaction generation
 -------------------------------------------------------------------------------}
 
-instance HashAlgorithm h => TxGen (ShelleyShelleyBlock (MockCrypto h)) where
+instance TxGen (ShelleyShelleyBlock (MockCrypto h)) where
   type TxGenExtra (ShelleyShelleyBlock (MockCrypto h)) = ShelleyTxGenExtra h
-  testGenTxs _coreNodeId _numCoreNodes curSlotNo cfg extra lst =
+  testGenTxs _coreNodeId _numCoreNodes _curSlotNo _cfg _extra _lst =
+      pure []
+
+_testGenTxs :: forall h.
+     HashAlgorithm h
+  => CoreNodeId
+  -> NumCoreNodes
+  -> SlotNo
+  -> TopLevelConfig (ShelleyShelleyBlock (MockCrypto h))
+  -> TxGenExtra (ShelleyShelleyBlock (MockCrypto h))
+  -> LedgerState (ShelleyShelleyBlock (MockCrypto h))
+  -> Gen [GenTx (ShelleyShelleyBlock (MockCrypto h))]
+_testGenTxs _coreNodeId _numCoreNodes curSlotNo cfg extra lst =
       map inj <$> shelleyGenTxs curSlotNo lcfgCurrent extra lstCurrent
     where
       TopLevelConfig {

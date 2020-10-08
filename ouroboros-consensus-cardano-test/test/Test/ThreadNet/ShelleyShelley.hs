@@ -151,10 +151,10 @@ instance Arbitrary TestSetup where
 --
 -- These tests are slow, so we settle for running fewer of them in this test
 -- suite since it is invoked frequently (eg CI for each push).
-oneTenthTestCount :: QuickCheckTests -> QuickCheckTests
-oneTenthTestCount (QuickCheckTests n) = QuickCheckTests $
+oneFifthTestCount :: QuickCheckTests -> QuickCheckTests
+oneFifthTestCount (QuickCheckTests n) = QuickCheckTests $
     if 0 == n then 0 else
-    max 1 $ n `div` 10
+    max 1 $ n `div` 5
 
 tests :: TestTree
 tests = testGroup "ShelleyShelley ThreadNet" $
@@ -163,7 +163,7 @@ tests = testGroup "ShelleyShelley ThreadNet" $
       if enabled
       then testProperty name $ \setup ->
              prop_simple_shelleyShelley_convergence setup
-      else adjustOption oneTenthTestCount $
+      else adjustOption oneFifthTestCount $
            testProperty name $ \setup ->
              prop_simple_shelleyShelley_convergence setup
     ]
