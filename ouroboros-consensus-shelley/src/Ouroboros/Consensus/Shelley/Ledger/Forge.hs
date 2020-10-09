@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric            #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE LambdaCase               #-}
 {-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE OverloadedStrings        #-}
@@ -27,9 +28,11 @@ import           Ouroboros.Consensus.Util.Assert
 
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 
+import           Ouroboros.Consensus.Shelley.Eras (EraCrypto)
 import           Ouroboros.Consensus.Shelley.Ledger.Block
 import           Ouroboros.Consensus.Shelley.Ledger.Config
 import           Ouroboros.Consensus.Shelley.Ledger.Integrity
+import           Ouroboros.Consensus.Shelley.Ledger.Ledger
 import           Ouroboros.Consensus.Shelley.Ledger.Mempool
 import           Ouroboros.Consensus.Shelley.Protocol
 import           Ouroboros.Consensus.Shelley.Protocol.HotKey (HotKey)
@@ -38,16 +41,16 @@ import           Ouroboros.Consensus.Shelley.Protocol.HotKey (HotKey)
   Forging
 -------------------------------------------------------------------------------}
 
-forgeShelleyBlock
-  :: (TPraosCrypto era, Monad m)
-  => HotKey era m
-  -> TPraosCanBeLeader era
+forgeShelleyBlock ::
+     forall m era. (ShelleyConstraints era, Monad m)
+  => HotKey (EraCrypto era) m
+  -> TPraosCanBeLeader (EraCrypto era)
   -> TopLevelConfig (ShelleyBlock era)
-  -> BlockNo                             -- ^ Current block number
-  -> SlotNo                              -- ^ Current slot number
+  -> BlockNo                               -- ^ Current block number
+  -> SlotNo                                -- ^ Current slot number
   -> TickedLedgerState (ShelleyBlock era)  -- ^ Current ledger
   -> [GenTx (ShelleyBlock era)]            -- ^ Txs to add in the block
-  -> TPraosIsLeader era                    -- ^ Leader proof
+  -> TPraosIsLeader (EraCrypto era)        -- ^ Leader proof
   -> m (ShelleyBlock era)
 forgeShelleyBlock hotKey canBeLeader cfg curNo curSlot tickedLedger txs isLeader = do
     tpraosFields <- forgeTPraosFields hotKey canBeLeader isLeader mkBhBody
@@ -65,8 +68,9 @@ forgeShelleyBlock hotKey canBeLeader cfg curNo curSlot tickedLedger txs isLeader
     mkHeader TPraosFields { tpraosSignature, tpraosToSign } =
       SL.BHeader tpraosToSign tpraosSignature
 
+    prevHash :: SL.PrevHash (EraCrypto era)
     prevHash =
-        toShelleyPrevHash
+        toShelleyPrevHash @era
       . castHash
       . getTipHash
       $ tickedLedger

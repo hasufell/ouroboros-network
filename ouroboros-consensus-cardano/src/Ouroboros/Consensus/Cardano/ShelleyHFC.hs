@@ -1,7 +1,9 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Ouroboros.Consensus.Cardano.ShelleyHFC (
     ShelleyBlockHFC
@@ -34,7 +36,7 @@ type ShelleyBlockHFC era = HardForkBlock '[ShelleyBlock era]
   NoHardForks instance
 -------------------------------------------------------------------------------}
 
-instance TPraosCrypto era => NoHardForks (ShelleyBlock era) where
+instance ShelleyConstraints era => NoHardForks (ShelleyBlock era) where
   getEraParams =
         shelleyEraParamsNeverHardForks
       . shelleyLedgerGenesis
@@ -52,7 +54,8 @@ instance TPraosCrypto era => NoHardForks (ShelleyBlock era) where
 -- | Forward to the ShelleyBlock instance. Only supports
 -- 'HardForkNodeToNodeDisabled', which is compatible with nodes running with
 -- 'ShelleyBlock'.
-instance TPraosCrypto era => SupportedNetworkProtocolVersion (ShelleyBlockHFC era) where
+instance ShelleyConstraints era
+      => SupportedNetworkProtocolVersion (ShelleyBlockHFC era) where
   supportedNodeToNodeVersions _ =
       Map.map HardForkNodeToNodeDisabled $
       supportedNodeToNodeVersions (Proxy @(ShelleyBlock era))
@@ -68,4 +71,4 @@ instance TPraosCrypto era => SupportedNetworkProtocolVersion (ShelleyBlockHFC er
 -- | Use the default implementations. This means the serialisation of blocks
 -- includes an era wrapper. Each block should do this from the start to be
 -- prepared for future hard forks without having to do any bit twiddling.
-instance TPraosCrypto era => SerialiseHFC '[ShelleyBlock era] where
+instance ShelleyConstraints era => SerialiseHFC '[ShelleyBlock era]

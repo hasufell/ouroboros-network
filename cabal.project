@@ -156,8 +156,8 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/cardano-ledger-specs
-  tag: d5eaac6c4b21a8e69dc3a5503a72e3c3bfde648e
-  --sha256: 1lzwfi6bc7z995s345ij6aachsrmhmrgm71060z6rvk1w97b3jqk
+  tag: b80714a3b6fec1128356bb2d5b196ab32356cf29
+  --sha256: 1nvxrk7b8zfys1n110811icl2mqfwcq9y8cxpfs61s51drvc6db4
   subdir:
     byron/chain/executable-spec
     byron/crypto
@@ -170,6 +170,7 @@ source-repository-package
     shelley/chain-and-ledger/dependencies/non-integer
     shelley/chain-and-ledger/executable-spec
     shelley/chain-and-ledger/shelley-spec-ledger-test
+    shelley-ma/impl
 
 source-repository-package
   type: git

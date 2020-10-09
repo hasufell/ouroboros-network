@@ -25,6 +25,7 @@ import           Ouroboros.Consensus.Ledger.SupportsMempool
 
 import qualified Shelley.Spec.Ledger.API as SL
 
+import           Ouroboros.Consensus.Shelley.Eras (EraCrypto)
 import           Ouroboros.Consensus.Shelley.Ledger
 import           Ouroboros.Consensus.Shelley.Protocol (TPraosCrypto,
                      TPraosState (..))
@@ -37,6 +38,7 @@ import           Test.Util.Serialisation.Roundtrip (SomeResult (..),
                      WithVersion (..))
 
 import           Test.Consensus.Shelley.MockCrypto (CanMock)
+import           Test.Shelley.Spec.Ledger.ConcreteCryptoTypes as SL
 import           Test.Shelley.Spec.Ledger.Serialisation.Generators (genPParams)
 
 {-------------------------------------------------------------------------------
@@ -52,7 +54,7 @@ instance CanMock era => Arbitrary (ShelleyBlock era) where
 instance CanMock era => Arbitrary (Header (ShelleyBlock era)) where
   arbitrary = getHeader <$> arbitrary
 
-instance CanMock era => Arbitrary (ShelleyHash era) where
+instance SL.Mock c => Arbitrary (ShelleyHash c) where
   arbitrary = ShelleyHash <$> arbitrary
 
 instance CanMock era => Arbitrary (GenTx (ShelleyBlock era)) where
@@ -78,7 +80,8 @@ instance CanMock era => Arbitrary (SomeBlock Query (ShelleyBlock era)) where
     , SomeBlock . GetFilteredDelegationsAndRewardAccounts <$> arbitrary
     ]
 
-instance CanMock era => Arbitrary (SomeResult (ShelleyBlock era)) where
+instance (CanMock era, TPraosCrypto (EraCrypto era))
+      => Arbitrary (SomeResult (ShelleyBlock era)) where
   arbitrary = oneof
     [ SomeResult GetLedgerTip <$> arbitrary
     , SomeResult GetEpochNo <$> arbitrary
@@ -99,7 +102,7 @@ instance CanMock era => Arbitrary (NonMyopicMemberRewards era) where
 instance CanMock era => Arbitrary (Point (ShelleyBlock era)) where
   arbitrary = BlockPoint <$> arbitrary <*> arbitrary
 
-instance Era era => Arbitrary (TPraosState era) where
+instance TPraosCrypto c => Arbitrary (TPraosState c) where
   arbitrary = do
       lastSlot <- frequency
         [ (1, return Origin)
@@ -145,21 +148,23 @@ instance Arbitrary (SL.PParams' SL.StrictMaybe era) where
   arbitrary = genericArbitraryU
   shrink    = genericShrink
 
-instance (TPraosCrypto era, CanMock era) => Arbitrary (SL.LedgerView era) where
+instance (TPraosCrypto c, SL.Mock c) => Arbitrary (SL.LedgerView c) where
   arbitrary = do
-      lvProtParams   <- genPParams (Proxy @era)
+      lvD            <- arbitrary
+      lvExtraEntropy <- arbitrary
       lvPoolDistr    <- arbitrary
       lvGenDelegs    <- arbitrary
       pure SL.LedgerView{..}
 
   shrink lv =
-      -- TODO shrink for lvProtParams
-      [ lv{SL.lvPoolDistr    = x} | x <- shrink lvPoolDistr    ] ++
-      [ lv{SL.lvGenDelegs    = x} | x <- shrink lvGenDelegs    ]
+      [ lv { SL.lvD            = x } | x <- shrink lvD            ] <>
+      [ lv { SL.lvExtraEntropy = x } | x <- shrink lvExtraEntropy ] <>
+      [ lv { SL.lvPoolDistr    = x } | x <- shrink lvPoolDistr    ] <>
+      [ lv { SL.lvGenDelegs    = x } | x <- shrink lvGenDelegs    ]
     where
-      SL.LedgerView { lvPoolDistr, lvGenDelegs } = lv
+      SL.LedgerView { lvD, lvExtraEntropy, lvPoolDistr, lvGenDelegs } = lv
 
-instance Era era => Arbitrary (SL.ChainDepState era) where
+instance TPraosCrypto c => Arbitrary (SL.ChainDepState c) where
   arbitrary = genericArbitraryU
   shrink = genericShrink
 

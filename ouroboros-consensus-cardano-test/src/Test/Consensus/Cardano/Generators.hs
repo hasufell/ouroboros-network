@@ -63,6 +63,9 @@ instance Arbitrary (CardanoBlock MockCryptoCompatByron) where
   arbitrary = oneof
     [ BlockByron   <$> arbitrary
     , BlockShelley <$> arbitrary
+    , BlockAllegra <$> arbitrary
+    -- TODO #2677 enable when the generator in the ledger supports Mary
+    -- , BlockMary    <$> arbitrary
     ]
 
 instance Arbitrary (CardanoHeader MockCryptoCompatByron) where
@@ -81,6 +84,7 @@ arbitraryHardForkState
   :: forall f c a.
      ( Arbitrary (f ByronBlock)
      , Arbitrary (f (ShelleyBlock (ShelleyEra c)))
+     , Arbitrary (f (ShelleyBlock (AllegraEra c)))
      , Coercible a (HardForkState f (CardanoEras c))
      )
   => Proxy f
@@ -96,13 +100,14 @@ arbitraryHardForkState _ = coerce <$> oneof
         <*> (TS
               <$> (K  <$> genPast)
               <*> (TZ <$> genCurrent (Proxy @(ShelleyBlock (AllegraEra c)))))
-    , TS
-        <$> (K  <$> genPast)
-        <*> (TS
-              <$> (K  <$> genPast)
-              <*> (TS
-                    <$> (K  <$> genPast)
-                    <*> (TZ <$> genCurrent (Proxy @(ShelleyBlock (MaryEra c))))))
+    -- TODO #2677 enable when the generator in the ledger supports Mary
+    -- , TS
+    --     <$> (K  <$> genPast)
+    --     <*> (TS
+    --           <$> (K  <$> genPast)
+    --           <*> (TS
+    --                 <$> (K  <$> genPast)
+    --                 <*> (TZ <$> genCurrent (Proxy @(ShelleyBlock (MaryEra c))))))
     ]
   where
     genCurrent
@@ -132,6 +137,9 @@ instance (CanMock (ShelleyEra c), CardanoHardForkConstraints c)
   arbitrary = OneEraHash <$> oneof
     [ toShortRawHash (Proxy @ByronBlock) <$> arbitrary
     , toShortRawHash (Proxy @(ShelleyBlock (ShelleyEra c))) <$> arbitrary
+    , toShortRawHash (Proxy @(ShelleyBlock (AllegraEra c))) <$> arbitrary
+    -- TODO #2677 enable when the generator in the ledger supports Mary
+    -- , toShortRawHash (Proxy @(ShelleyBlock (MaryEra    c))) <$> arbitrary
     ]
 
 instance (c ~ MockCryptoCompatByron, Era (ShelleyEra c))
@@ -139,6 +147,9 @@ instance (c ~ MockCryptoCompatByron, Era (ShelleyEra c))
   arbitrary = oneof
     [ mapAnnTip TipInfoByron   <$> arbitrary @(AnnTip (ByronBlock))
     , mapAnnTip TipInfoShelley <$> arbitrary @(AnnTip (ShelleyBlock (ShelleyEra c)))
+    , mapAnnTip TipInfoAllegra <$> arbitrary @(AnnTip (ShelleyBlock (AllegraEra c)))
+    -- TODO #2677 enable when the generator in the ledger supports Mary
+    -- , mapAnnTip TipInfoMary    <$> arbitrary @(AnnTip (ShelleyBlock (MaryEra    c)))
     ]
 
 {-------------------------------------------------------------------------------
@@ -161,14 +172,13 @@ arbitraryNodeToNode
   :: ( Arbitrary (WithVersion ByronNodeToNodeVersion byron)
      , Arbitrary shelley
      , Arbitrary allegra
-     , Arbitrary mary
      )
   => (byron   -> cardano)
   -> (shelley -> cardano)
   -> (allegra -> cardano)
   -> (mary    -> cardano)
   -> Gen (WithVersion (HardForkNodeToNodeVersion (CardanoEras c)) cardano)
-arbitraryNodeToNode injByron injShelley injAllegra injMary = oneof
+arbitraryNodeToNode injByron injShelley injAllegra _injMary = oneof
     -- Byron + HardFork disabled
     [ (\(WithVersion versionByron b) ->
           WithVersion
@@ -210,17 +220,18 @@ arbitraryNodeToNode injByron injShelley injAllegra injMary = oneof
               :* Nil))
             (injAllegra a))
         <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-    -- Mary + HardFork enabled
-    , (\versionByron versionShelley versionAllegra (WithVersion versionMary m) ->
-          WithVersion
-            (HardForkNodeToNodeEnabled (
-                 EraNodeToNodeEnabled versionByron
-              :* EraNodeToNodeEnabled versionShelley
-              :* EraNodeToNodeEnabled versionAllegra
-              :* EraNodeToNodeEnabled versionMary
-              :* Nil))
-            (injMary m))
-        <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+    -- TODO #2677 enable when the generator in the ledger supports Mary
+    -- -- Mary + HardFork enabled
+    -- , (\versionByron versionShelley versionAllegra (WithVersion versionMary m) ->
+    --       WithVersion
+    --         (HardForkNodeToNodeEnabled (
+    --              EraNodeToNodeEnabled versionByron
+    --           :* EraNodeToNodeEnabled versionShelley
+    --           :* EraNodeToNodeEnabled versionAllegra
+    --           :* EraNodeToNodeEnabled versionMary
+    --           :* Nil))
+    --         (injMary m))
+    --     <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
     ]
 
 instance c ~ MockCryptoCompatByron
@@ -292,14 +303,13 @@ arbitraryNodeToClient
   :: ( Arbitrary (WithVersion ByronNodeToClientVersion byron)
      , Arbitrary shelley
      , Arbitrary allegra
-     , Arbitrary mary
      )
   => (byron   -> cardano)
   -> (shelley -> cardano)
   -> (allegra -> cardano)
   -> (mary    -> cardano)
   -> Gen (WithVersion (HardForkNodeToClientVersion (CardanoEras c)) cardano)
-arbitraryNodeToClient injByron injShelley injAllegra injMary = oneof
+arbitraryNodeToClient injByron injShelley injAllegra _injMary = oneof
     -- Byron + HardFork disabled
     [ (\(WithVersion versionByron b) ->
           WithVersion
@@ -339,17 +349,18 @@ arbitraryNodeToClient injByron injShelley injAllegra injMary = oneof
               :* Nil))
             (injAllegra a))
         <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-    -- Mary + HardFork enabled
-    , (\versionByron versionShelley versionAllegra (WithVersion versionMary m) ->
-          WithVersion
-            (HardForkNodeToClientEnabled (
-                 EraNodeToClientEnabled versionByron
-              :* EraNodeToClientEnabled versionShelley
-              :* EraNodeToClientEnabled versionAllegra
-              :* EraNodeToClientEnabled versionMary
-              :* Nil))
-            (injMary m))
-        <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+    -- TODO #2677 enable when the generator in the ledger supports Mary
+    -- -- Mary + HardFork enabled
+    -- , (\versionByron versionShelley versionAllegra (WithVersion versionMary m) ->
+    --       WithVersion
+    --         (HardForkNodeToClientEnabled (
+    --              EraNodeToClientEnabled versionByron
+    --           :* EraNodeToClientEnabled versionShelley
+    --           :* EraNodeToClientEnabled versionAllegra
+    --           :* EraNodeToClientEnabled versionMary
+    --           :* Nil))
+    --         (injMary m))
+    --     <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
     ]
 
 instance c ~ MockCryptoCompatByron
@@ -496,9 +507,10 @@ instance c ~ MockCryptoCompatByron
           , (\(SomeResult q (_ :: result)) mismatch ->
                 SomeResult (QueryIfCurrentAllegra q) (Left @_ @result mismatch))
               <$> arbitrary <*> arbitrary
-          , (\(SomeResult q (_ :: result)) mismatch ->
-                SomeResult (QueryIfCurrentMary q) (Left @_ @result mismatch))
-              <$> arbitrary <*> arbitrary
+          -- TODO #2677 enable when the generator in the ledger supports Mary
+          -- , (\(SomeResult q (_ :: result)) mismatch ->
+          --       SomeResult (QueryIfCurrentMary q) (Left @_ @result mismatch))
+          --     <$> arbitrary <*> arbitrary
           ]
 
       genQueryAnytimeResultByron :: Gen (SomeResult (CardanoBlock c))

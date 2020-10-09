@@ -196,9 +196,9 @@ codecConfig :: CardanoCodecConfig Crypto
 codecConfig =
     CardanoCodecConfig
       Byron.codecConfig
-      Shelley.codecConfig
-      Shelley.codecConfig
-      Shelley.codecConfig
+      Shelley.ShelleyCodecConfig
+      Shelley.ShelleyCodecConfig
+      Shelley.ShelleyCodecConfig
 
 {-------------------------------------------------------------------------------
   Additional injections

@@ -16,12 +16,13 @@ import           Cardano.Crypto.DSIGN (MockDSIGN)
 import           Cardano.Crypto.Hash (HashAlgorithm)
 import           Cardano.Crypto.KES (MockKES)
 
+import           Cardano.Ledger.Core (Value)
 import           Cardano.Ledger.Crypto (Crypto (..))
-import qualified Cardano.Ledger.Era as Era (Era (Crypto))
-import           Cardano.Ledger.Shelley (Shelley)
+import qualified Shelley.Spec.Ledger.API as SL
 import           Test.Cardano.Crypto.VRF.Fake (FakeVRF)
 import           Test.Shelley.Spec.Ledger.ConcreteCryptoTypes as SL
 
+import           Ouroboros.Consensus.Shelley.Eras (Era, EraCrypto, ShelleyEra)
 import           Ouroboros.Consensus.Shelley.Ledger (ShelleyBlock)
 import           Ouroboros.Consensus.Shelley.Protocol.Crypto (TPraosCrypto)
 
@@ -40,11 +41,16 @@ instance HashAlgorithm h => Crypto (MockCrypto h) where
   type KES      (MockCrypto h) = MockKES 10
   type VRF      (MockCrypto h) = FakeVRF
 
-type MockShelley h = Shelley (MockCrypto h)
+type MockShelley h = ShelleyEra (MockCrypto h)
 
-instance HashAlgorithm h => TPraosCrypto (MockShelley h)
+instance HashAlgorithm h => TPraosCrypto (MockCrypto h)
 
 type Block h = ShelleyBlock (MockShelley h)
 
 -- | Cryptography that can easily be mocked
-type CanMock era = (Era.Era era, SL.Mock (Era.Crypto era))
+type CanMock era =
+  ( Era era
+  , SL.Mock (EraCrypto era)
+    -- TODO #2677 the generators in the ledger impose this constraint
+  , Value era ~ SL.Coin
+  )

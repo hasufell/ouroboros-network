@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE NamedFieldPuns      #-}
@@ -14,6 +15,7 @@ import           Cardano.Crypto.Hash (ShortHash)
 import           Ouroboros.Consensus.Storage.Common (BinaryBlockInfo (..))
 import           Ouroboros.Consensus.Util (Dict (..))
 
+import           Ouroboros.Consensus.Shelley.Eras (ShelleyBased)
 import           Ouroboros.Consensus.Shelley.Ledger
 import           Ouroboros.Consensus.Shelley.Node ()
 import           Ouroboros.Consensus.Shelley.Node.Serialisation ()
@@ -54,7 +56,7 @@ tests = testGroup "Shelley"
     testCodecCfg = ShelleyCodecConfig
 
     dictNestedHdr ::
-         forall a era. Era era
+         forall a era. ShelleyBased era
       => NestedCtxt_ (ShelleyBlock era) Header a -> Dict (Eq a, Show a)
     dictNestedHdr CtxtShelley = Dict
 

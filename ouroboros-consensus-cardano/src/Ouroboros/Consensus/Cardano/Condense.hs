@@ -1,4 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Ouroboros.Consensus.Cardano.Condense () where
 
@@ -6,11 +9,11 @@ import           Ouroboros.Consensus.HardFork.Combinator.Condense
 
 import           Ouroboros.Consensus.Byron.Ledger
 
+import           Ouroboros.Consensus.Shelley.Eras (ShelleyBased)
 import           Ouroboros.Consensus.Shelley.Ledger
 
 import           Ouroboros.Consensus.Cardano.Block
-
-import           Cardano.Ledger.Crypto (Crypto)
+import           Ouroboros.Consensus.Cardano.CanHardFork
 
 {-------------------------------------------------------------------------------
   Condense
@@ -20,6 +23,6 @@ import           Cardano.Ledger.Crypto (Crypto)
 
 instance CondenseConstraints ByronBlock
 
-instance Era era => CondenseConstraints (ShelleyBlock era)
+instance ShelleyBased era => CondenseConstraints (ShelleyBlock era)
 
-instance Crypto c => CondenseConstraints (CardanoBlock c)
+instance CardanoHardForkConstraints c => CondenseConstraints (CardanoBlock c)

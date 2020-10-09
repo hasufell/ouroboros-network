@@ -64,8 +64,7 @@ import           Test.Util.Orphans.Arbitrary ()
 import           Test.Util.Slots (NumSlots (..))
 import           Test.Util.Time (dawnOfTime)
 
-import           Cardano.Ledger.Crypto (DSIGN, KES, VRF)
-import           Cardano.Ledger.Era (Era (Crypto))
+import           Cardano.Ledger.Crypto (Crypto, DSIGN, KES, VRF)
 import qualified Shelley.Spec.Ledger.API as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL (truncateUnitInterval,
                      unitIntervalFromRational)
@@ -75,9 +74,9 @@ import qualified Shelley.Spec.Ledger.PParams as SL (emptyPParams,
                      emptyPParamsUpdate)
 import qualified Shelley.Spec.Ledger.Tx as SL (WitnessSetHKD (..))
 
-import           Ouroboros.Consensus.Shelley.Eras (ShelleyEra)
+import           Ouroboros.Consensus.Shelley.Eras (EraCrypto, ShelleyEra)
 import           Ouroboros.Consensus.Shelley.Ledger (GenTx (..), ShelleyBlock,
-                     mkShelleyTx)
+                     ShelleyConstraints, mkShelleyTx)
 import           Ouroboros.Consensus.Shelley.Node
 import           Ouroboros.Consensus.Shelley.Protocol
 
@@ -115,31 +114,31 @@ tpraosSlotLength = slotLengthFromSec 2
   CoreNode secrets/etc
 -------------------------------------------------------------------------------}
 
-data CoreNode era = CoreNode {
-      cnGenesisKey  :: !(SL.SignKeyDSIGN era)
-    , cnDelegateKey :: !(SL.SignKeyDSIGN era)
+data CoreNode c = CoreNode {
+      cnGenesisKey  :: !(SL.SignKeyDSIGN c)
+    , cnDelegateKey :: !(SL.SignKeyDSIGN c)
       -- ^ Cold delegate key. The hash of the corresponding verification
       -- (public) key will be used as the payment credential.
-    , cnStakingKey  :: !(SL.SignKeyDSIGN era)
+    , cnStakingKey  :: !(SL.SignKeyDSIGN c)
       -- ^ The hash of the corresponding verification (public) key will be
       -- used as the staking credential.
-    , cnVRF         :: !(SL.SignKeyVRF   era)
-    , cnKES         :: !(SL.SignKeyKES   era)
-    , cnOCert       :: !(SL.OCert        era)
+    , cnVRF         :: !(SL.SignKeyVRF   c)
+    , cnKES         :: !(SL.SignKeyKES   c)
+    , cnOCert       :: !(SL.OCert        c)
     }
 
-data CoreNodeKeyInfo era = CoreNodeKeyInfo
+data CoreNodeKeyInfo c = CoreNodeKeyInfo
   { cnkiKeyPair
-      ::  ( SL.KeyPair 'SL.Payment era
-          , SL.KeyPair 'SL.Staking era
+      ::  ( SL.KeyPair 'SL.Payment c
+          , SL.KeyPair 'SL.Staking c
           )
   , cnkiCoreNode ::
-      ( SL.KeyPair 'SL.Genesis era
-      , Gen.AllIssuerKeys era 'SL.GenesisDelegate
+      ( SL.KeyPair 'SL.Genesis c
+      , Gen.AllIssuerKeys c 'SL.GenesisDelegate
       )
   }
 
-coreNodeKeys :: CSL.Mock (Crypto era) => CoreNode era -> CoreNodeKeyInfo era
+coreNodeKeys :: forall c. CSL.Mock c => CoreNode c -> CoreNodeKeyInfo c
 coreNodeKeys CoreNode{cnGenesisKey, cnDelegateKey, cnStakingKey} =
     CoreNodeKeyInfo {
         cnkiCoreNode =
@@ -157,22 +156,23 @@ coreNodeKeys CoreNode{cnGenesisKey, cnDelegateKey, cnStakingKey} =
       , cnkiKeyPair = (mkDSIGNKeyPair cnDelegateKey, mkDSIGNKeyPair cnStakingKey)
       }
   where
+    mkDSIGNKeyPair :: SL.SignKeyDSIGN c -> SL.KeyPair kd c
     mkDSIGNKeyPair k = SL.KeyPair (SL.VKey $ deriveVerKeyDSIGN k) k
 
 genCoreNode ::
-     forall era. TPraosCrypto era
+     forall c. TPraosCrypto c
   => SL.KESPeriod
-  -> Gen (CoreNode era)
+  -> Gen (CoreNode c)
 genCoreNode startKESPeriod = do
-    genKey <- genKeyDSIGN <$> genSeed (seedSizeDSIGN (Proxy @(DSIGN (Crypto era))))
-    delKey <- genKeyDSIGN <$> genSeed (seedSizeDSIGN (Proxy @(DSIGN (Crypto era))))
-    stkKey <- genKeyDSIGN <$> genSeed (seedSizeDSIGN (Proxy @(DSIGN (Crypto era))))
-    vrfKey <- genKeyVRF   <$> genSeed (seedSizeVRF   (Proxy @(VRF   (Crypto era))))
+    genKey <- genKeyDSIGN <$> genSeed (seedSizeDSIGN (Proxy @(DSIGN c)))
+    delKey <- genKeyDSIGN <$> genSeed (seedSizeDSIGN (Proxy @(DSIGN c)))
+    stkKey <- genKeyDSIGN <$> genSeed (seedSizeDSIGN (Proxy @(DSIGN c)))
+    vrfKey <- genKeyVRF   <$> genSeed (seedSizeVRF   (Proxy @(VRF   c)))
     kesKey <- genKeyKES . mlsbFromByteString
-                          <$> genBytes (seedSizeKES  (Proxy @(KES   (Crypto era))))
+                          <$> genBytes (seedSizeKES  (Proxy @(KES   c)))
     let kesPub = deriveVerKeyKES kesKey
         sigma = SL.signedDSIGN
-          @era
+          @c
           delKey
           (SL.OCertSignable kesPub certificateIssueNumber startKESPeriod)
     let ocert = SL.OCert {
@@ -198,7 +198,7 @@ genCoreNode startKESPeriod = do
     genSeed :: Integral a => a -> Gen Cardano.Crypto.Seed
     genSeed = fmap mkSeedFromBytes . genBytes
 
-mkLeaderCredentials :: TPraosCrypto era => CoreNode era -> TPraosLeaderCredentials era
+mkLeaderCredentials :: TPraosCrypto c => CoreNode c -> TPraosLeaderCredentials c
 mkLeaderCredentials CoreNode { cnDelegateKey, cnVRF, cnKES, cnOCert } =
     TPraosLeaderCredentials {
         tpraosLeaderCredentialsInitSignKey = cnKES
@@ -227,14 +227,14 @@ data KesConfig = KesConfig
 -- | A 'KesConfig' that will not require more evolutions than this test's crypto
 -- allows.
 mkKesConfig
-  :: forall proxy era. Era era
-  => proxy era -> NumSlots -> KesConfig
+  :: forall proxy c. Crypto c
+  => proxy c -> NumSlots -> KesConfig
 mkKesConfig _ (NumSlots t) = KesConfig
     { maxEvolutions
     , slotsPerEvolution = divCeiling t maxEvolutions
     }
   where
-    maxEvolutions = fromIntegral $ totalPeriodsKES (Proxy @(KES (Crypto era)))
+    maxEvolutions = fromIntegral $ totalPeriodsKES (Proxy @(KES c))
 
     -- | Like 'div', but rounds-up.
     divCeiling :: Integral a => a -> a -> a
@@ -263,14 +263,14 @@ mkEpochSize (SecurityParam k) f =
 -- but we can configure a potentially lower maximum for the ledger, that's why
 -- we take it as an argument.
 mkGenesisConfig
-  :: forall era. TPraosCrypto era
+  :: forall era. TPraosCrypto (EraCrypto era)
   => ProtVer  -- ^ Initial protocol version
   -> SecurityParam
   -> Rational   -- ^ Initial active slot coefficient
   -> DecentralizationParam
   -> SlotLength
   -> KesConfig
-  -> [CoreNode era]
+  -> [CoreNode (EraCrypto era)]
   -> ShelleyGenesis era
 mkGenesisConfig pVer k f d slotLength kesCfg coreNodes =
     ShelleyGenesis {
@@ -311,13 +311,14 @@ mkGenesisConfig pVer k f d slotLength kesCfg coreNodes =
       , SL._protocolVersion = pVer
       }
 
-    coreNodesToGenesisMapping :: Map (SL.KeyHash 'SL.Genesis era) (SL.GenDelegPair era)
+    coreNodesToGenesisMapping ::
+         Map (SL.KeyHash 'SL.Genesis (EraCrypto era)) (SL.GenDelegPair (EraCrypto era))
     coreNodesToGenesisMapping  = Map.fromList
       [ let
-          gkh :: SL.KeyHash 'SL.Genesis era
+          gkh :: SL.KeyHash 'SL.Genesis (EraCrypto era)
           gkh = SL.hashKey . SL.VKey $ deriveVerKeyDSIGN cnGenesisKey
 
-          gdpair :: SL.GenDelegPair era
+          gdpair :: SL.GenDelegPair (EraCrypto era)
           gdpair = SL.GenDelegPair
               (SL.hashKey . SL.VKey $ deriveVerKeyDSIGN cnDelegateKey)
               (SL.hashVerKeyVRF $ deriveVerKeyVRF cnVRF)
@@ -354,9 +355,10 @@ mkGenesisConfig pVer k f d slotLength kesCfg coreNodes =
           ]
       }
       where
-        coreNodeToPoolMapping :: Map (SL.KeyHash 'SL.StakePool era) (SL.PoolParams era)
-          = Map.fromList
-            [ ( SL.hashKey . SL.VKey . deriveVerKeyDSIGN $ cnStakingKey
+        coreNodeToPoolMapping ::
+             Map (SL.KeyHash 'SL.StakePool (EraCrypto era)) (SL.PoolParams era)
+        coreNodeToPoolMapping = Map.fromList [
+              ( SL.hashKey . SL.VKey . deriveVerKeyDSIGN $ cnStakingKey
               , SL.PoolParams
                 { SL._poolPubKey = poolHash
                 , SL._poolVrf = vrfHash
@@ -380,12 +382,12 @@ mkGenesisConfig pVer k f d slotLength kesCfg coreNodes =
             , let vrfHash = SL.hashVerKeyVRF $ deriveVerKeyVRF cnVRF
             ]
 
-mkProtocolShelley
-  :: forall m c. (IOLike m, TPraosCrypto (ShelleyEra c))
+mkProtocolShelley ::
+     forall m c. (IOLike m, ShelleyConstraints (ShelleyEra c))
   => ShelleyGenesis (ShelleyEra c)
   -> SL.Nonce
   -> ProtVer
-  -> CoreNode (ShelleyEra c)
+  -> CoreNode c
   -> ProtocolInfo m (ShelleyBlock (ShelleyEra c))
 mkProtocolShelley genesis initialNonce protVer coreNode =
     protocolInfoShelley $ ProtocolParamsShelley {
@@ -401,13 +403,13 @@ mkProtocolShelley genesis initialNonce protVer coreNode =
 incrementMinorProtVer :: SL.ProtVer -> SL.ProtVer
 incrementMinorProtVer (SL.ProtVer major minor) = SL.ProtVer major (succ minor)
 
-mkSetDecentralizationParamTxs
-  :: forall era. (TPraosCrypto era)
-  => [CoreNode era]
+mkSetDecentralizationParamTxs ::
+     forall c. ShelleyConstraints (ShelleyEra c)
+  => [CoreNode c]
   -> ProtVer   -- ^ The proposed protocol version
   -> SlotNo   -- ^ The TTL
   -> DecentralizationParam   -- ^ The new value
-  -> [GenTx (ShelleyBlock era)]
+  -> [GenTx (ShelleyBlock (ShelleyEra c))]
 mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
     (:[]) $
     mkShelleyTx $
@@ -422,7 +424,7 @@ mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
     scheduledEpoch :: EpochNo
     scheduledEpoch = EpochNo 0
 
-    witnessSet :: SL.WitnessSet era
+    witnessSet :: SL.WitnessSet (ShelleyEra c)
     witnessSet = SL.WitnessSet
       { addrWits = Set.fromList signatures
       , bootWits = Set.empty
@@ -431,10 +433,10 @@ mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
 
     -- Every node signs the transaction body, since it includes a " vote " from
     -- every node.
-    signatures :: [SL.WitVKey era 'SL.Witness]
+    signatures :: [SL.WitVKey 'SL.Witness (ShelleyEra c)]
     signatures =
         [ SL.WitVKey (SL.VKey vk) $
-          SL.signedDSIGN @era sk (hashWithSerialiser toCBOR body)
+          SL.signedDSIGN @c sk (hashWithSerialiser toCBOR body)
         | cn <- coreNodes
         , let sk = cnDelegateKey cn
         , let vk = deriveVerKeyDSIGN sk
@@ -442,7 +444,7 @@ mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
 
     -- Nothing but the parameter update and the obligatory touching of an
     -- input.
-    body :: SL.TxBody era
+    body :: SL.TxBody (ShelleyEra c)
     body = SL.TxBody
       { _certs    = Seq.empty
       , _inputs   = Set.singleton (fst touchCoins)
@@ -459,7 +461,7 @@ mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
     -- We use the input of the first node, but we just put it all right back.
     --
     -- ASSUMPTION: This transaction runs in the first slot.
-    touchCoins :: (SL.TxIn era, SL.TxOut era)
+    touchCoins :: (SL.TxIn (ShelleyEra c), SL.TxOut (ShelleyEra c))
     touchCoins = case coreNodes of
         []   -> error "no nodes!"
         cn:_ ->
@@ -473,7 +475,7 @@ mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
             coin = SL.Coin $ fromIntegral initialLovelacePerCoreNode
 
     -- One replicant of the parameter update per each node.
-    update :: SL.Update era
+    update :: SL.Update (ShelleyEra c)
     update =
         flip SL.Update scheduledEpoch $ SL.ProposedPPUpdates $
         Map.fromList $
@@ -497,13 +499,15 @@ mkSetDecentralizationParamTxs coreNodes pVer ttl dNew =
 initialLovelacePerCoreNode :: Word64
 initialLovelacePerCoreNode = 1000
 
-mkCredential :: TPraosCrypto era => SL.SignKeyDSIGN era -> SL.Credential r era
+mkCredential ::
+     TPraosCrypto (EraCrypto era)
+  => SL.SignKeyDSIGN (EraCrypto era) -> SL.Credential r era
 mkCredential = SL.KeyHashObj . mkKeyHash
 
-mkKeyHash :: TPraosCrypto era => SL.SignKeyDSIGN era -> SL.KeyHash r era
+mkKeyHash :: TPraosCrypto c => SL.SignKeyDSIGN c -> SL.KeyHash r c
 mkKeyHash = SL.hashKey . mkVerKey
 
-mkVerKey :: TPraosCrypto era => SL.SignKeyDSIGN era -> SL.VKey r era
+mkVerKey :: TPraosCrypto c => SL.SignKeyDSIGN c -> SL.VKey r c
 mkVerKey = SL.VKey . deriveVerKeyDSIGN
 
 mkKeyHashVrf :: (HashAlgorithm h, VRFAlgorithm vrf)

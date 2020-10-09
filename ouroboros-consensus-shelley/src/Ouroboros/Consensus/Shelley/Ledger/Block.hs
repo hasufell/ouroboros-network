@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -12,6 +13,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE UndecidableInstances       #-}
 module Ouroboros.Consensus.Shelley.Ledger.Block (
     ShelleyHash (..)
   , ShelleyBlock (..)
@@ -53,33 +55,33 @@ import           Ouroboros.Consensus.Storage.Common (BinaryBlockInfo (..))
 import           Ouroboros.Consensus.Util (ShowProxy (..), hashFromBytesShortE)
 import           Ouroboros.Consensus.Util.Condense
 
+import           Cardano.Ledger.Crypto (Crypto, HASH)
 import qualified Shelley.Spec.Ledger.API as SL
 
-import           Cardano.Ledger.Crypto (HASH)
-import           Cardano.Ledger.Era (Era (Crypto))
+import           Ouroboros.Consensus.Shelley.Eras (Era, EraCrypto, ShelleyBased)
 
 {-------------------------------------------------------------------------------
   Header hash
 -------------------------------------------------------------------------------}
 
-newtype ShelleyHash era = ShelleyHash {
-      unShelleyHash :: SL.HashHeader era
+newtype ShelleyHash c = ShelleyHash {
+      unShelleyHash :: SL.HashHeader c
     }
   deriving stock    (Eq, Ord, Show, Generic)
   deriving newtype  (ToCBOR, FromCBOR)
   deriving anyclass (NoThunks)
 
-instance Era era => Serialise (ShelleyHash era) where
+instance Crypto c => Serialise (ShelleyHash c) where
   encode = toCBOR
   decode = fromCBOR
 
-instance Condense (ShelleyHash era) where
+instance Condense (ShelleyHash c) where
   condense = show . unShelleyHash
 
 instance Era era => ConvertRawHash (ShelleyBlock era) where
   toShortRawHash   _ = Crypto.hashToBytesShort . SL.unHashHeader . unShelleyHash
   fromShortRawHash _ = ShelleyHash . SL.HashHeader . hashFromBytesShortE
-  hashSize         _ = fromIntegral $ Crypto.sizeHash (Proxy @(HASH (Crypto era)))
+  hashSize         _ = fromIntegral $ Crypto.sizeHash (Proxy @(HASH (EraCrypto era)))
 
 {-------------------------------------------------------------------------------
   Shelley blocks and headers
@@ -92,13 +94,15 @@ instance Era era => ConvertRawHash (ShelleyBlock era) where
 -- but we may need different additional information when running the chain.
 data ShelleyBlock era = ShelleyBlock {
       shelleyBlockRaw        :: !(SL.Block era)
-    , shelleyBlockHeaderHash :: !(ShelleyHash era)
+    , shelleyBlockHeaderHash :: !(ShelleyHash (EraCrypto era))
     }
-  deriving (Eq, Show)
+
+deriving instance ShelleyBased era => Show (ShelleyBlock era)
+deriving instance ShelleyBased era => Eq   (ShelleyBlock era)
 
 instance Typeable era => ShowProxy (ShelleyBlock era) where
 
-type instance HeaderHash (ShelleyBlock era) = ShelleyHash era
+type instance HeaderHash (ShelleyBlock era) = ShelleyHash (EraCrypto era)
 
 mkShelleyBlock :: Era era => SL.Block era -> ShelleyBlock era
 mkShelleyBlock raw = ShelleyBlock {
@@ -107,10 +111,14 @@ mkShelleyBlock raw = ShelleyBlock {
     }
 
 data instance Header (ShelleyBlock era) = ShelleyHeader {
-      shelleyHeaderRaw  :: !(SL.BHeader era)
-    , shelleyHeaderHash :: !(ShelleyHash era)
+      shelleyHeaderRaw  :: !(SL.BHeader (EraCrypto era))
+    , shelleyHeaderHash :: !(ShelleyHash (EraCrypto era))
     }
-  deriving (Eq, Generic, Show, NoThunks)
+  deriving (Generic)
+
+deriving instance ShelleyBased era => Show     (Header (ShelleyBlock era))
+deriving instance ShelleyBased era => Eq       (Header (ShelleyBlock era))
+deriving instance ShelleyBased era => NoThunks (Header (ShelleyBlock era))
 
 instance Typeable era => ShowProxy (Header (ShelleyBlock era)) where
 
@@ -130,7 +138,7 @@ instance Era era => GetHeader (ShelleyBlock era) where
 
   headerIsEBB = const Nothing
 
-mkShelleyHeader :: Era era => SL.BHeader era -> Header (ShelleyBlock era)
+mkShelleyHeader :: Era era => SL.BHeader (EraCrypto era) -> Header (ShelleyBlock era)
 mkShelleyHeader raw = ShelleyHeader {
       shelleyHeaderRaw  = raw
     , shelleyHeaderHash = ShelleyHash (SL.bhHash raw)
@@ -146,7 +154,7 @@ instance Era era => HasHeader (Header (ShelleyBlock era)) where
     , headerFieldBlockNo = coerce . SL.bheaderBlockNo . SL.bhbody . shelleyHeaderRaw $ hdr
     }
 
-instance Era era => GetPrevHash (ShelleyBlock era)  where
+instance Era era => GetPrevHash (ShelleyBlock era) where
   headerPrevHash =
       fromShelleyPrevHash
     . SL.bheaderPrev
@@ -169,12 +177,12 @@ instance Era era => HasAnnTip (ShelleyBlock era)
 -------------------------------------------------------------------------------}
 
 -- | From @cardano-ledger-specs@ to @ouroboros-consensus@
-fromShelleyPrevHash :: SL.PrevHash era -> ChainHash (ShelleyBlock era)
+fromShelleyPrevHash :: SL.PrevHash (EraCrypto era) -> ChainHash (ShelleyBlock era)
 fromShelleyPrevHash SL.GenesisHash   = GenesisHash
 fromShelleyPrevHash (SL.BlockHash h) = BlockHash (ShelleyHash h)
 
 -- | From @ouroboros-consensus@ to @cardano-ledger-specs@
-toShelleyPrevHash :: ChainHash (Header (ShelleyBlock era)) -> SL.PrevHash era
+toShelleyPrevHash :: ChainHash (Header (ShelleyBlock era)) -> SL.PrevHash (EraCrypto era)
 toShelleyPrevHash GenesisHash                 = SL.GenesisHash
 toShelleyPrevHash (BlockHash (ShelleyHash h)) = SL.BlockHash h
 
@@ -203,7 +211,7 @@ instance Era era => ToCBOR (ShelleyBlock era) where
   -- Don't encode the header hash, we recompute it during deserialisation
   toCBOR = toCBOR . shelleyBlockRaw
 
-instance Era era => FromCBOR (Annotator (ShelleyBlock era)) where
+instance ShelleyBased era => FromCBOR (Annotator (ShelleyBlock era)) where
   fromCBOR = fmap mkShelleyBlock <$> fromCBOR
 
 instance Era era => ToCBOR (Header (ShelleyBlock era)) where
@@ -216,7 +224,7 @@ instance Era era => FromCBOR (Annotator (Header (ShelleyBlock era))) where
 encodeShelleyBlock :: Era era => ShelleyBlock era -> Encoding
 encodeShelleyBlock = toCBOR
 
-decodeShelleyBlock :: Era era => Decoder s (Lazy.ByteString -> ShelleyBlock era)
+decodeShelleyBlock :: ShelleyBased era => Decoder s (Lazy.ByteString -> ShelleyBlock era)
 decodeShelleyBlock = (. Full) . runAnnotator <$> fromCBOR
 
 shelleyBinaryBlockInfo :: Era era => ShelleyBlock era -> BinaryBlockInfo
@@ -238,7 +246,7 @@ decodeShelleyHeader = (. Full) . runAnnotator <$> fromCBOR
   Condense
 -------------------------------------------------------------------------------}
 
-instance Era era => Condense (ShelleyBlock era) where
+instance ShelleyBased era => Condense (ShelleyBlock era) where
   condense = show . shelleyBlockRaw
 
 instance Era era => Condense (Header (ShelleyBlock era)) where

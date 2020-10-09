@@ -7,36 +7,20 @@ module Ouroboros.Consensus.Shelley.Eras (
   , StandardShelley
   , StandardAllegra
   , StandardMary
+    -- * Type synonyms for convenience
+  , EraCrypto
+    -- * Re-exports
+  , ShelleyBased
+  , Era
+  , StandardCrypto
   ) where
 
-import qualified Cardano.Ledger.Shelley as Era (Shelley)
+import           Cardano.Ledger.Allegra (AllegraEra)
+import           Cardano.Ledger.Era (Crypto, Era)
+import           Cardano.Ledger.Mary (MaryEra)
+import           Cardano.Ledger.Shelley (ShelleyBased, ShelleyEra)
 
 import           Ouroboros.Consensus.Shelley.Protocol.Crypto (StandardCrypto)
-
-{-------------------------------------------------------------------------------
-  Eras based on the Shelley ledger
--------------------------------------------------------------------------------}
-
--- | The era after Byron is the Shelley era.
---
--- The Shelley ledger and block type itself is parameterised by an era
--- parameter, which is in its turn parameterised by the crypto used.
-type ShelleyEra c = Era.Shelley c
-
--- | The era after Shelley is Allegra, the illegitimate daughter of Byron.
---
--- In this era, we introduce time locks and miscellaneous fixes for the Shelley
--- era.
---
--- TODO #2668 Change this to the proper Allegra era
-type AllegraEra c = Era.Shelley c
-
--- | The era after Allegra is Mary (Shelley), the wife of Percy Shelley.
---
--- In this era, we introduce multi-asset (hence MA-ry).
---
--- TODO #2668 Change this to the proper Mary era
-type MaryEra c = Era.Shelley c
 
 {-------------------------------------------------------------------------------
   Eras instantiated with standard crypto
@@ -50,3 +34,13 @@ type StandardAllegra = AllegraEra StandardCrypto
 
 -- | The Mary era with standard crypto
 type StandardMary = MaryEra StandardCrypto
+
+{-------------------------------------------------------------------------------
+  Type synonyms for convenience
+-------------------------------------------------------------------------------}
+
+-- | The 'Cardano.Ledger.Era.Crypto' type family conflicts with the
+-- 'Cardano.Ledger.Crypto.Crypto' class. To avoid having to import one or both
+-- of them qualified, define 'EraCrypto' as an alias of the former: /return the
+-- crypto used by this era/.
+type EraCrypto era = Crypto era

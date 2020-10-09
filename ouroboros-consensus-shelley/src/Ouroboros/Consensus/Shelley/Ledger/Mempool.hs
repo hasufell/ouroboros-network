@@ -3,12 +3,15 @@
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE DisambiguateRecordFields   #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE UndecidableInstances       #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Shelley mempool integration
@@ -44,16 +47,17 @@ import qualified Shelley.Spec.Ledger.API as SL
 import           Shelley.Spec.Ledger.BlockChain as SL (TxSeq (..))
 import qualified Shelley.Spec.Ledger.UTxO as SL (txid)
 
+import           Ouroboros.Consensus.Shelley.Eras (ShelleyBased)
 import           Ouroboros.Consensus.Shelley.Ledger.Block
 import           Ouroboros.Consensus.Shelley.Ledger.Ledger
-import           Ouroboros.Consensus.Shelley.Protocol
-
 
 type ShelleyTxId era = SL.TxId era
 
 data instance GenTx (ShelleyBlock era) = ShelleyTx !(ShelleyTxId era) !(SL.Tx era)
-  deriving stock    (Eq, Generic)
+  deriving stock    (Generic)
   deriving anyclass (NoThunks)
+
+deriving instance ShelleyBased era => Eq (GenTx (ShelleyBlock era))
 
 instance Typeable era => ShowProxy (GenTx (ShelleyBlock era)) where
 
@@ -87,7 +91,8 @@ fixedBlockBodyOverhead = 1024
 perTxOverhead :: Num a => a
 perTxOverhead = 4
 
-instance TPraosCrypto era => LedgerSupportsMempool (ShelleyBlock era) where
+instance ShelleyConstraints era
+      => LedgerSupportsMempool (ShelleyBlock era) where
   txInvariant = const True
 
   applyTx = applyShelleyTx
@@ -130,12 +135,12 @@ instance Era era => HasTxs (ShelleyBlock era) where
   Serialisation
 -------------------------------------------------------------------------------}
 
-instance Era era => ToCBOR (GenTx (ShelleyBlock era)) where
+instance ShelleyBased era => ToCBOR (GenTx (ShelleyBlock era)) where
   -- No need to encode the 'TxId', it's just a hash of the 'SL.TxBody' inside
   -- 'SL.Tx', so it can be recomputed.
   toCBOR (ShelleyTx _txid tx) = wrapCBORinCBOR toCBOR tx
 
-instance Era era => FromCBOR (GenTx (ShelleyBlock era)) where
+instance ShelleyBased era => FromCBOR (GenTx (ShelleyBlock era)) where
   fromCBOR = fmap mkShelleyTx $ unwrapCBORinCBOR
     $ (. Full) . runAnnotator <$> fromCBOR
 
@@ -143,13 +148,13 @@ instance Era era => FromCBOR (GenTx (ShelleyBlock era)) where
   Pretty-printing
 -------------------------------------------------------------------------------}
 
-instance Era era => Condense (GenTx (ShelleyBlock era)) where
+instance ShelleyBased era => Condense (GenTx (ShelleyBlock era)) where
   condense (ShelleyTx _ tx ) = show tx
 
 instance Condense (GenTxId (ShelleyBlock era)) where
   condense (ShelleyTxId i) = "txid: " <> show i
 
-instance Era era => Show (GenTx (ShelleyBlock era)) where
+instance ShelleyBased era => Show (GenTx (ShelleyBlock era)) where
   show = condense
 
 instance Show (GenTxId (ShelleyBlock era)) where
@@ -160,7 +165,7 @@ instance Show (GenTxId (ShelleyBlock era)) where
 -------------------------------------------------------------------------------}
 
 applyShelleyTx
-  :: TPraosCrypto era
+  :: ShelleyConstraints era
   => LedgerConfig (ShelleyBlock era)
   -> SlotNo
   -> GenTx (ShelleyBlock era)
