@@ -30,7 +30,7 @@ handshakeServerPeer
   -> Versions vNumber extra r
   -> Peer (Handshake vNumber vParams)
           AsServer StPropose m
-          (Either (RefuseReason vNumber) (r, agreedOptions))
+          (Either (RefuseReason vNumber) (r, vNumber, agreedOptions))
 handshakeServerPeer VersionDataCodec {encodeData, decodeData, getAgreedOptions} acceptVersion versions =
     -- await for versions proposed by a client
     Await (ClientAgency TokPropose) $ \msg -> case msg of
@@ -66,6 +66,7 @@ handshakeServerPeer VersionDataCodec {encodeData, decodeData, getAgreedOptions} 
                             (MsgAcceptVersion vNumber (encodeData (versionExtra version) vData))
                             (Done TokDone $ Right $
                               ( runApplication (versionApplication version) vData vData'
+                              , vNumber
                               , getAgreedOptions (versionExtra version) vNumber vData'
                               ))
 

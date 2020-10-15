@@ -263,7 +263,7 @@ connectToNode' sn handshakeCodec versionDataCodec NetworkConnectTracers {nctMuxT
              traceWith muxTracer $ Mx.MuxTraceHandshakeClientError err (diffTime ts_end ts_start)
              throwIO err
 
-         Right (app, _handshakeParams) -> do
+         Right (app, _versionNumber, _handshakeParams) -> do
              traceWith muxTracer $ Mx.MuxTraceHandshakeClientEnd (diffTime ts_end ts_start)
              Mx.muxStart
                muxTracer
@@ -380,7 +380,7 @@ beginConnection sn muxTracer handshakeTracer handshakeCodec versionDataCodec acc
                  traceWith muxTracer' $ Mx.MuxTraceHandshakeServerError err
                  throwIO err
 
-             Right (SomeResponderApplication app, _agreedOptions) -> do
+             Right (SomeResponderApplication app, _versionNumber, _agreedOptions) -> do
                  traceWith muxTracer' $ Mx.MuxTraceHandshakeServerEnd
                  Mx.muxStart
                    muxTracer'

@@ -33,7 +33,7 @@ handshakeClientPeer
           AsClient StPropose m
           (Either
             (HandshakeClientProtocolError vNumber)
-            (r, agreedOptions))
+            (r, vNumber, agreedOptions))
 handshakeClientPeer VersionDataCodec {encodeData, decodeData, getAgreedOptions} versions =
   -- send known versions
   Yield (ClientAgency TokPropose) (MsgProposeVersions $ encodeVersions encodeData versions) $
@@ -59,6 +59,7 @@ handshakeClientPeer VersionDataCodec {encodeData, decodeData, getAgreedOptions} 
                 -- TODO: we should check that we agree on received @vData'@,
                 -- this might be less trivial than testing for equality.
                 Done TokDone $ Right $ ( runApplication (versionApplication version) vData vData'
+                                       , vNumber
                                        , getAgreedOptions (versionExtra version) vNumber vData'
                                        )
 

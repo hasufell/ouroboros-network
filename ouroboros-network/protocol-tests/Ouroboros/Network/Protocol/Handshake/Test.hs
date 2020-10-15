@@ -393,9 +393,9 @@ prop_connect (ArbitraryVersions clientVersions serverVersions) =
                 (\DictVersion {} -> acceptableVersion)
                 serverVersions)) of
       (clientRes', serverRes', TerminalStates TokDone TokDone) ->
-           fromMaybe False clientRes === either (const False) fst clientRes'
+           fromMaybe False clientRes === either (const False) (\(r, _, _) -> r) clientRes'
         .&&.
-           fromMaybe False serverRes === either (const False) fst serverRes'
+           fromMaybe False serverRes === either (const False) (\(r, _, _) -> r) serverRes'
 --
 -- Properties using a channel
 --
@@ -431,8 +431,9 @@ prop_channel createChannels clientVersions serverVersions =
       case (clientRes', serverRes') of
         -- buth succeeded, we just check that the application (which is
         -- a boolean value) is the one that was put inside 'Version'
-        (Right c, Right s) -> Just (fst c) === clientRes
-                         .&&. Just (fst s) === serverRes
+        (Right (c, _, _), Right (s, _, _)) ->
+                              Just c === clientRes
+                         .&&. Just s === serverRes
 
         -- both failed
         (Left{}, Left{})   -> property True
@@ -497,7 +498,7 @@ prop_channel_asymmetric createChannels clientVersions = do
           serverVersions)
     pure $
       case (clientRes', serverRes') of
-        (Right (c, _), Right (s, _))
+        (Right (c, _, _), Right (s, _, _))
                            ->      Just c === clientRes
                               .&&. Just s === serverRes
         (Left{}, Left{})   -> property True

@@ -113,7 +113,7 @@ runHandshakeClient
     -> connectionId
     -> HandshakeArguments connectionId vNumber extra m application agreedOptions
     -> m (Either (HandshakeException (HandshakeClientProtocolError vNumber))
-                 (application, agreedOptions))
+                 (application, vNumber, agreedOptions))
 runHandshakeClient bearer
                    connectionId
                    HandshakeArguments {
@@ -150,7 +150,7 @@ runHandshakeServer
     -> HandshakeArguments connectionId vNumber extra m application agreedOptions
     -> m (Either
            (HandshakeException (RefuseReason vNumber))
-           (application, agreedOptions))
+           (application, vNumber, agreedOptions))
 runHandshakeServer bearer
                    connectionId
                    acceptVersion
