@@ -145,6 +145,7 @@ library
                        fingertree        >=0.1.4.2 && <0.2,
                        iproute,
                        mtl,
+                       nothunks,
                        network           >=3.1 && <3.2,
                        psqueues          >=0.2.3 && <0.3,
                        serialise         >=0.2 && <0.3,
@@ -249,7 +250,6 @@ test-suite test-network
                        Test.AnchoredFragment
                        Test.Chain
                        Test.ChainFragment
-                       Test.Ouroboros.Network.Utils
                        Test.Ouroboros.Network.BlockFetch
                        Test.Ouroboros.Network.KeepAlive
                        Test.Ouroboros.Network.MockNode
@@ -292,6 +292,7 @@ test-suite test-network
                        cardano-prelude,
                        cardano-slotting,
                        contra-tracer,
+                       nothunks,
 
                        io-sim,
                        io-sim-classes,
@@ -340,7 +341,6 @@ test-suite test-cddl
                        tasty-quickcheck,
 
                        cardano-binary,
-                       cardano-prelude,
                        cardano-slotting,
                        contra-tracer,
 
@@ -383,3 +383,5 @@ executable demo-chain-sync
   ghc-options:         -Wall
                        -threaded
                        -rtsopts
+
+
