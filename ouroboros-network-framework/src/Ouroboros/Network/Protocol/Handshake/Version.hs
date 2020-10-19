@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -11,7 +12,6 @@ module Ouroboros.Network.Protocol.Handshake.Version
   ( Versions (..)
   , Application (..)
   , Version (..)
-  , Sigma (..)
   , Accept (..)
   , Acceptable (..)
   , Dict (..)
@@ -60,18 +60,13 @@ import           Ouroboros.Network.CodecCBORTerm
 -- >          ]
 -- >
 --
-newtype Versions vNum extra r = Versions
-  { getVersions :: Map vNum (Sigma (Version extra r))
+newtype Versions vNum vData r = Versions
+  { getVersions :: Map vNum (Version vData r)
   }
   deriving (Semigroup)
 
 instance Functor (Versions vNum extra) where
-    fmap f (Versions vs) = Versions $ Map.map fmapSigma vs
-      where
-        fmapSigma (Sigma t (Version (Application app) extra)) = Sigma t (Version (Application $ \x y -> f (app x y)) extra)
-
-data Sigma f where
-  Sigma :: !t -> !(f t) -> Sigma f
+    fmap f (Versions vs) = Versions $ Map.map (fmap f)  vs
 
 
 -- | Useful for folding multiple 'Versions'.
@@ -105,14 +100,17 @@ class Acceptable v where
   acceptableVersion :: v -> v -> Accept
 
 -- | Takes a pair of version data: local then remote.
-newtype Application r vData = Application
+newtype Application vData r = Application
   { runApplication :: vData -> vData -> r
   }
+  deriving Functor
 
-data Version extra r vData = Version
-  { versionApplication :: Application r vData
-  , versionExtra       :: extra vData
+
+data Version vData r = Version
+  { versionApplication :: Application vData r
+  , versionData        :: vData
   }
+  deriving Functor
 
 data VersionMismatch vNum where
   NoCommonVersion     :: VersionMismatch vNum
@@ -125,15 +123,13 @@ data Dict constraint thing where
 -- 'hanshakeParams' is instatiated in either "Ouroboros.Network.NodeToNode" or
 -- "Ouroboros.Network.NodeToClient" to 'HandshakeParams'.
 --
-data DictVersion vNumber agreedOptions vData where
+data DictVersion vNumber vData where
      DictVersion :: ( Typeable vData
                     , Acceptable vData
                     , Show vData
                     )
                  => CodecCBORTerm Text vData
-                 -> (vNumber -> vData -> agreedOptions)
-                 -- ^ agreed vData
-                 -> DictVersion vNumber agreedOptions vData
+                 -> DictVersion vNumber vData
 
 -- | Pick the version with the highest version number (by `Ord vNum`) common
 -- in both maps.
@@ -150,21 +146,17 @@ data DictVersion vNumber agreedOptions vData where
 -- This becomes a non-issue on the network because the decoder/encoder
 -- basically fills the role of a safe dynamic type cast.
 pickVersions
-  :: ( Ord vNum )
-  => (forall vData . extra vData -> Dict Typeable vData)
-  -> Versions vNum extra r
-  -> Versions vNum extra r
+  :: Ord vNum
+  => Versions vNum vData r
+  -> Versions vNum vData r
   -> Either (VersionMismatch vNum) (r, r)
-pickVersions isTypeable lversions rversions = case Map.toDescList commonVersions of
+pickVersions lversions rversions = case Map.toDescList commonVersions of
   [] -> Left NoCommonVersion
-  (vNum, (Sigma (ldata :: ldata) lversion, Sigma (rdata :: rdata) rversion)) : _ ->
-    case (isTypeable (versionExtra lversion), isTypeable (versionExtra rversion)) of
-      (Dict, Dict) -> case eqT :: Maybe (ldata :~: rdata) of
-        Nothing   -> Left $ InconsistentVersion vNum
-        Just Refl ->
-          let lapp = versionApplication lversion
-              rapp = versionApplication rversion
-          in  Right (runApplication lapp ldata rdata, runApplication rapp rdata rdata)
+  (vNum, (Version lapp ldata, Version rapp rdata)) : _ ->
+      -- TODO: data negotiation!
+      Right ( runApplication lapp ldata rdata
+            , runApplication rapp rdata ldata
+            )
   where
   commonVersions = getVersions lversions `intersect` getVersions rversions
   intersect = Map.intersectionWith (,)
@@ -178,10 +170,9 @@ pickVersions isTypeable lversions rversions = case Map.toDescList commonVersions
 simpleSingletonVersions
   :: vNum
   -> vData
-  -> extra vData
   -> r
-  -> Versions vNum extra r
-simpleSingletonVersions vNum vData extra r =
+  -> Versions vNum vData r
+simpleSingletonVersions vNum vData r =
   Versions
     $ Map.singleton vNum
-        (Sigma vData (Version (Application $ \_ _ -> r) extra))
+      (Version (Application (\_ _ -> r)) vData)
