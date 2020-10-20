@@ -52,11 +52,11 @@ specific), we need a projection from the ledger \emph{state} to the consensus
 protocol ledger \emph{view}
 (\cref{class:ConsensusProtocol:ledgerview,ledger:api:LedgerSupportsProtocol}).
 As we have seen\todo{Once we write these sections, add back references here},
-the HFC requires for each pair of consecutive eras a pair of \emph{state} translation
-functions, as well as a \emph{projection} from the state of the old era to the
-ledger view of the new era. These means that if we have $n + 1$ eras, we need
-$n$ across-era projection functions, in addition to the $n + 1$ projections
-functions we already have \emph{within} each era.
+the HFC additionally requires for each pair of consecutive eras a  \emph{state}
+translation functions as well as a \emph{projection} from the state of the old
+era to the ledger view of the new era. These means that if we have $n + 1$ eras,
+we need $n$ across-era projection functions, in addition to the $n + 1$
+projections functions we already have \emph{within} each era.
 
 This might feel a bit cumbersome; perhaps a more natural approach would be to
 only have within-era projection functions, but require a function to translate
@@ -102,10 +102,10 @@ square/.style={rectangle, draw},
 \end{center}
 
 The problem with this approach is that the ledger view only contains a small
-subset of the ledger state; the old ledger \emph{state} might contain
-information about scheduled changes that should be taken into account when
-constructing the ledger view in the new era, but the final ledger view in the
-old era might not have that information.
+subset of the ledger state; the old ledger state might contain information about
+scheduled changes that should be taken into account when constructing the ledger
+view in the new era, but the final ledger view in the old era might not have
+that information.
 
 Indeed, a moment's reflection reveals that this cannot be right the approach.
 After all, we cannot step the ledger state; the dashed arrow in
@@ -127,13 +127,24 @@ square/.style={rectangle, draw},
 \end{center}
 %
 is not definable: scheduled changes are recorded in the ledger state, not in
-the ledger view.
+the ledger view. If we cannot even do this \emph{within} an era, there is no
+reason to asusme it would be possible \emph{across} eras.
 
-We cannot forecastly directly from the old ledger state to the new era either: this would result in a ledger view from the old era in the new era, violating the invariant we discussed in \cref{hfc:ledger:invalid-states}, and it would moreover result in incorrect forecast
-bound checks.
+We cannot forecastly directly from the old ledger state to the new era either:
+this would result in a ledger view from the old era in the new era, violating
+the invariant we discussed in \cref{hfc:ledger:invalid-states}.
+
+Both approaches---forecasting the final old ledger state and then translating,
+or forecasting directly across the era boundary and then translating---also
+suffer from another problem: neither approach would compute correct forecast
+bounds. Correct bounds depend on properties of both the old and the new ledger,
+as well as the distance of the old ledger state to that final ledger view. For
+example, if that final ledger view is right at the edge of the forecast range of
+the old ledger state, we should not be able to give a forecast in the new era at
+all.
 
 Requiring a special forecasting function for each pair of eras of course in a
 way is cheating: it pushes the complexity of doing this forecasting to the
-specific ledgers that the HFC is instantiated at. However, as it turns out, this
+specific ledgers that the HFC is instantiated at. As it turns out, however, this
 function tends to be easy to define for any pair of concrete ledgers; it's just
 hard to define in a completely general way.
